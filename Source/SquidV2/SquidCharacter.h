@@ -8,6 +8,12 @@
 #include "CoreMinimal.h"
 #include "SquidCharacter.generated.h"
 
+UENUM()
+enum Side {
+	Left	UMETA(DisplayName = "Left"),
+	Right	UMETA(DisplayName = "Right")
+};
+
 UCLASS()
 class SQUIDV2_API ASquidCharacter : public ACharacter
 {
@@ -23,6 +29,8 @@ public:
 	UPROPERTY(VisibleAnywhere)
 		bool rightDir;
 	UPROPERTY(VisibleAnywhere)
+		bool collision;
+	UPROPERTY(VisibleAnywhere)
 		float DistBtwnBuildings;
 
 protected:
@@ -35,10 +43,6 @@ public:
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-	// Handles input for moving right and left.
-	UFUNCTION() //Engine is aware of of function
-		void MoveRight(float Value);
 
 	// Third person camera.
 	UPROPERTY(VisibleAnywhere)
@@ -56,8 +60,28 @@ public:
 	UFUNCTION()
 		void StopJump();
 	
+	// On component hit activated when component collides with other collision component.
 	UFUNCTION()
 		void OnCompHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+	
+	// Enum for which side the squid is going/on
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Side)
+		TEnumAsByte<Side> side;
 
-	enum side { left, right };
+	/** called when something enters the sphere component */
+	UFUNCTION()
+		void OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	/** called when something leaves the sphere component */
+	UFUNCTION()
+		void OnOverlapEnd(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+
+	// Win function
+	UFUNCTION()
+		void Win();
+
+	// Lose function
+	UFUNCTION()
+		void Loss();
 };

@@ -14,20 +14,16 @@ ASquidCharacter::ASquidCharacter()
 	PrimaryActorTick.bCanEverTick = true;
 	
 	rightDir = true;
-	DistBtwnBuildings = 515.0f;
+	collision = true;
+	DistBtwnBuildings = 465.0f;
+	side = Right;
+
 	GetCapsuleComponent()->SetNotifyRigidBodyCollision(true);
-	GetCapsuleComponent()->BodyInstance.SetCollisionProfileName("BlockAll");
+	GetCapsuleComponent()->BodyInstance.SetCollisionProfileName("PhysicsActor");
 	GetCapsuleComponent()->OnComponentHit.AddDynamic(this, &ASquidCharacter::OnCompHit);
-/*
-	MyComp = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComp"));
-	MyComp->SetNotifyRigidBodyCollision(true);
+	GetCapsuleComponent()->OnComponentBeginOverlap.AddDynamic(this, &ASquidCharacter::OnOverlapBegin);
+	GetCapsuleComponent()->OnComponentBeginOverlap.AddDynamic(this, &ASquidCharacter::OnOverlapEnd);
 
-	MyComp->BodyInstance.SetCollisionProfileName("BlockAllDynamic");
-	MyComp->OnComponentHit.AddDynamic(this, &ASquidCharacter::OnCompHit);
-
-	// Set as root component
-	RootComponent = MyComp;
-	*/
 	// Make cube
 	VisualMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	VisualMesh->SetupAttachment(RootComponent);
@@ -43,21 +39,6 @@ ASquidCharacter::ASquidCharacter()
 	}
 	VisualMesh->SetNotifyRigidBodyCollision(true);
 	
-	/*MyComp = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CapsuleComp"));
-	MyComp->SetSimulatePhysics(true);
-	MyComp->SetNotifyRigidBodyCollision(true);
-
-	MyComp->BodyInstance.SetCollisionProfileName("BlockAll");
-	MyComp->OnComponentHit.AddDynamic(this, &ASquidCharacter::OnCompHit);
-	// Set as root component
-	//RootComponent = MyComp;
-	MyComp ->SetupAttachment(RootComponent);
-
-	GetCapsuleComponent()->SetNotifyRigidBodyCollision(true);
-
-	GetCapsuleComponent->BodyInstance.SetCollisionProfileName("BlockAll");
-	GetCapsuleComponent->OnComponentHit.AddDynamic(this, &ASquidCharacter::OnCompHit);
-	//RootComponent = VisualMesh;*/
 
 	// Create a first person camera component.
 	ThirdPCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
@@ -96,67 +77,59 @@ void ASquidCharacter::Tick(float DeltaTime)
 	if (GetActorLocation().Z < 50.0f) {
 		if (GEngine)
 		{
-			// Put up a debug message for five seconds. The -1 "Key" value (first argument) indicates that we will never need to update or refresh this message.
-			GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, TEXT("YOU LOSE"));
+			Loss();
 		}
 	}
 	if (GetActorLocation().X > 6800.0f) {
 		if (GEngine)
-		{
-			// Put up a debug message for five seconds. The -1 "Key" value (first argument) indicates that we will never need to update or refresh this message.
-			GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, TEXT("YOU WIN"));
+		{	
+			Win();
 		}
 	}
+	UCharacterMovementComponent* CharMovement = GetCharacterMovement();
+	// if (collision) { if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("collided")); }
+
+
+	
 }
 
 // Called to bind functionality to input
 void ASquidCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
+
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	// Set up "movement" bindings.
-	/*PlayerInputComponent->BindAxis("MoveForward", this, &ASquidCharacter::MoveForward);*/
-	//PlayerInputComponent->BindAxis("MoveRight", this, &ASquidCharacter::MoveRight);
-
 	UCharacterMovementComponent* CharMovement = GetCharacterMovement();
-	//if (CharMovement->Velocity.Y == 0.0f) {}
-	//if (CharMovement->Velocity.Y <= 0.0f) {
+	if (collision) {
 		PlayerInputComponent->BindAction("JumpRight", IE_Pressed, this, &ASquidCharacter::StartJumpRight);
-	//}
-	//if (CharMovement->Velocity.Y >= 0.0f) {
 		PlayerInputComponent->BindAction("JumpLeft", IE_Pressed, this, &ASquidCharacter::StartJumpLeft);
-	//}
+	}
 	PlayerInputComponent->BindAction("JumpRight", IE_Released, this, &ASquidCharacter::StopJump);
 	PlayerInputComponent->BindAction("JumpLeft", IE_Released, this, &ASquidCharacter::StopJump);
 }
 
-void ASquidCharacter::MoveRight(float Value)
-{
-	// Find out which way is "right" and record that the player wants to move that way.
-	//FRotationMatrix(Controller->GetControlRotation()).GetScaledAxis(EAxis::Y);
-	//AddMovementInput(Direction, Value);
-	
-	FVector NewLocation = GetActorLocation();
-	NewLocation.Y += Value*27.0f;       //Add to x distance by 1
-	SetActorLocation(NewLocation);
-}
-
 void ASquidCharacter::StartJumpRight()
 {
-	bPressedJump = true;
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, TEXT("right"));
-	UCharacterMovementComponent* CharMovement = GetCharacterMovement();
-	CharMovement->Velocity += FVector(0, DistBtwnBuildings, 0);
-	rightDir = true;
+	if (side == Left && collision && GetCharacterMovement()->Velocity.Z == 0.0f) {
+		bPressedJump = true;
+		UCharacterMovementComponent* CharMovement = GetCharacterMovement();
+		CharMovement->Velocity += FVector(0, DistBtwnBuildings, 0);
+		rightDir = true;
+		side = Right;
+		collision = false;
+	}
 }
 
 void ASquidCharacter::StartJumpLeft()
 {
-	bPressedJump = true;
-
-	UCharacterMovementComponent* CharMovement = GetCharacterMovement();
-	CharMovement->Velocity += FVector(0, -DistBtwnBuildings, 0);
-	rightDir = false;
+	if (side == Right && collision && GetCharacterMovement()->Velocity.Z == 0.0f) {
+		bPressedJump = true;
+		UCharacterMovementComponent* CharMovement = GetCharacterMovement();
+		CharMovement->Velocity += FVector(0, -DistBtwnBuildings, 0);
+		rightDir = false;
+		side = Left;
+		collision = false;
+	}
 }
 
 void ASquidCharacter::StopJump()
@@ -168,6 +141,36 @@ void ASquidCharacter::OnCompHit(UPrimitiveComponent* HitComp, AActor* OtherActor
 {
 	if ((OtherActor != NULL) && (OtherActor != this) && (OtherComp != NULL))
 	{
-		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("I Hit: "), *OtherActor->GetName()));
+		collision = true;
+		//if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("I Hit: "), *OtherActor->GetName()));
+		if (OtherActor->GetName().Equals("CubeL3") || OtherComp->GetName().Equals("CubeL3")) {
+			Loss();
+		}
+	}	
+}
+
+void ASquidCharacter::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if (OtherActor && (OtherActor != this) && OtherComp)
+	{
+		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, TEXT("TOUCHIN"));
 	}
+}
+
+void ASquidCharacter::OnOverlapEnd(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if (OtherActor && (OtherActor != this) && OtherComp)
+	{
+		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, TEXT("NOT TOUCHIN"));
+	}
+}
+
+void ASquidCharacter::Loss() {
+	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Red, TEXT("YOU LOSE"));
+	UGameplayStatics::GetPlayerController(GetWorld(), 0)->ConsoleCommand("quit");
+}
+
+void ASquidCharacter::Win() {
+	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 50.0f, FColor::Green, TEXT("YOU WIN"));
+	UGameplayStatics::GetPlayerController(GetWorld(), 0)->ConsoleCommand("quit");
 }
